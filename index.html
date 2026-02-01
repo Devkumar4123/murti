@@ -5,6 +5,63 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Dilip Murtikar Tundra - Divine Murti Generator &amp; Booking</title>
         <link rel="stylesheet" href="style.css" />
+        <style>
+            /* Modern Trending Background Effect */
+            #home {
+                background-color: #fffbf0;
+                position: relative;
+                overflow: hidden;
+                z-index: 1;
+            }
+            /* Golden Glow Blob (Top Right) */
+            #home::before {
+                content: '';
+                position: absolute;
+                top: -150px;
+                right: -100px;
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(212, 175, 55, 0.3) 0%, rgba(255,255,255,0) 70%);
+                filter: blur(60px);
+                animation: floatGlow 8s ease-in-out infinite alternate;
+                z-index: -1;
+            }
+            /* Soft Orange Glow Blob (Bottom Left) */
+            #home::after {
+                content: '';
+                position: absolute;
+                bottom: -100px;
+                left: -150px;
+                width: 500px;
+                height: 500px;
+                background: radial-gradient(circle, rgba(192, 80, 77, 0.15) 0%, rgba(255,255,255,0) 70%);
+                filter: blur(50px);
+                animation: floatGlow 10s ease-in-out infinite alternate-reverse;
+                z-index: -1;
+            }
+            @keyframes floatGlow {
+                0% { transform: translate(0, 0); }
+                100% { transform: translate(50px, 30px); }
+            }
+            /* Ensure content stays on top */
+            .home-hero, .business-card, .services-section { position: relative; z-index: 2; }
+
+            /* Admin Panel Styles */
+            .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; }
+            .admin-tab { padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #777; transition: 0.3s; }
+            .admin-tab.active { color: #d4af37; border-bottom: 3px solid #d4af37; margin-bottom: -2px; }
+            .admin-content { display: none; animation: fadeIn 0.3s ease; }
+            .admin-content.active { display: block; }
+            .admin-table-container { overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .admin-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+            .admin-table th { background: #f8f9fa; padding: 15px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #eee; }
+            .admin-table td { padding: 12px 15px; border-bottom: 1px solid #eee; color: #555; }
+            .admin-product-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #fff; border: 1px solid #eee; margin-bottom: 10px; border-radius: 6px; }
+            .admin-product-details { display: flex; align-items: center; gap: 15px; }
+            .admin-emoji { font-size: 2rem; width: 50px; height: 50px; background: #f9f9f9; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+            .admin-actions { display: flex; gap: 10px; }
+            .admin-form-card { background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 30px; }
+        </style>
     </head>
 <body>
     <header class="site-header">
@@ -16,6 +73,7 @@
                 <button class="nav-link" data-target="booking">Book Murti</button>
                 <button class="nav-link" data-target="gallery">Gallery</button>
                 <button class="nav-link" data-target="about">About</button>
+                <button class="nav-link" data-target="admin">Admin</button>
             </nav>
         </div>
     </header>
@@ -410,6 +468,173 @@
                         <button type="button" class="secondary-btn" onclick="hideOrderForm()">Back to Products</button>
                         <p id="order-status" class="form-status" aria-live="polite"></p>
                     </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Panel Section -->
+        <section id="admin" class="page-section">
+            <div class="container">
+                <h2>Admin Dashboard</h2>
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchAdminTab('orders')">Orders Management</button>
+                    <button class="admin-tab" onclick="switchAdminTab('products')">Product Management</button>
+                    <button class="admin-tab" onclick="switchAdminTab('gallery')">Gallery Management</button>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="admin-orders" class="admin-content active">
+                    <div class="ecommerce-filters">
+                        <button class="filter-btn active" onclick="filterOrders('all')">All Orders</button>
+                        <button class="filter-btn" onclick="filterOrders('New')">New</button>
+                        <button class="filter-btn" onclick="filterOrders('Confirmed')">Confirmed</button>
+                        <button class="filter-btn" onclick="filterOrders('Delivered')">Delivered</button>
+                    </div>
+                    <div class="admin-table-container">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Contact</th>
+                                    <th>Amount</th>
+                                    <th>Item</th>
+                                    <th>Material</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <!-- Orders populated by JS -->
+                            </tbody>
+                        </table>
+                        <div id="no-orders-msg" style="display:none; text-align:center; padding:30px; color:#777;">No orders found.</div>
+                    </div>
+                </div>
+
+                <!-- Products Tab -->
+                <div id="admin-products" class="admin-content">
+                    <div class="admin-form-card" id="add-product-form">
+                        <h3>Add / Edit Product</h3>
+                        <form id="product-form">
+                            <input type="hidden" id="product-id">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Product Name</label>
+                                    <input type="text" id="product-name" required placeholder="e.g. Ganesh Ji Murti">
+                                </div>
+                                <div class="form-group">
+                                    <label>Deity</label>
+                                    <select id="product-deity" required>
+                                        <option value="Ganesh">Ganesh</option>
+                                        <option value="Shiva">Shiva</option>
+                                        <option value="Krishna">Krishna</option>
+                                        <option value="Hanuman">Hanuman</option>
+                                        <option value="Durga">Durga</option>
+                                        <option value="Ram">Ram</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Material</label>
+                                    <select id="product-material" required>
+                                        <option value="Marble">Marble</option>
+                                        <option value="Brass">Brass</option>
+                                        <option value="Clay">Clay</option>
+                                        <option value="Wood">Wood</option>
+                                        <option value="Gold">Gold</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Price (₹)</label>
+                                    <input type="number" id="product-price" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Original Price (₹)</label>
+                                    <input type="number" id="product-original-price" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Emoji Icon</label>
+                                    <input type="text" id="product-emoji" value="🐘">
+                                </div>
+                                <div class="form-group">
+                                    <label>Product Image (Upload from Gallery)</label>
+                                    <input type="file" id="product-image" accept="image/*">
+                                </div>
+                                <div class="form-group">
+                                    <label>Price Range Category</label>
+                                    <select id="product-price-range">
+                                        <option value="5000-10000">5000-10000</option>
+                                        <option value="10000-25000">10000-25000</option>
+                                        <option value="25000+">25000+</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-actions" style="margin-top:20px;">
+                                <button type="submit" class="primary-btn">Save Product</button>
+                                <button type="button" class="secondary-btn" onclick="document.getElementById('product-form').reset(); document.getElementById('product-id').value='';">Reset</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="admin-products-list">
+                        <!-- Products list populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Gallery Tab -->
+                <div id="admin-gallery" class="admin-content">
+                    <div class="admin-form-card">
+                        <h3>Add New Gallery Photo</h3>
+                        <form id="gallery-form">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Title</label>
+                                    <input type="text" id="gallery-title" required placeholder="e.g. Ganesh Ji Visarjan">
+                                </div>
+                                <div class="form-group">
+                                    <label>Deity</label>
+                                    <select id="gallery-deity" required>
+                                        <option value="ganesh">Ganesh</option>
+                                        <option value="shiva">Shiva</option>
+                                        <option value="krishna">Krishna</option>
+                                        <option value="hanuman">Hanuman</option>
+                                        <option value="durga">Durga</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Material</label>
+                                    <select id="gallery-material" required>
+                                        <option value="clay">Clay</option>
+                                        <option value="marble">Marble</option>
+                                        <option value="brass">Brass</option>
+                                        <option value="wooden">Wooden</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Festival</label>
+                                    <select id="gallery-festival">
+                                        <option value="none">None</option>
+                                        <option value="ganesh-chaturthi">Ganesh Chaturthi</option>
+                                        <option value="navratri">Navratri</option>
+                                        <option value="diwali">Diwali</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Photo Upload</label>
+                                    <input type="file" id="gallery-image" accept="image/*" required>
+                                </div>
+                            </div>
+                            <div class="form-actions" style="margin-top:20px;">
+                                <button type="submit" class="primary-btn">Add to Gallery</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="admin-gallery-list" class="products-grid">
+                        <!-- Admin gallery items here -->
+                    </div>
                 </div>
             </div>
         </section>

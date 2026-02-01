@@ -28,6 +28,12 @@
                 renderProducts();
             }, 100);
         }
+
+        // Render admin data if admin section is shown
+        if (id === 'admin') {
+            if (window.displayOrders) window.displayOrders();
+            if (window.renderAdminProducts) window.renderAdminProducts();
+        }
         
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -153,7 +159,7 @@ Thank you for your order!`;
         grid.innerHTML = filteredProducts.map(product => `
             <div class="product-card" onclick="openProductModal(${product.id})">
                 <div class="product-image">
-                    ${product.emoji}
+                    ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">` : product.emoji}
                     <span class="product-badge">30% OFF</span>
                 </div>
                 <div class="product-info">
@@ -283,7 +289,8 @@ Thank you for your order!`;
     const filterMaterial = document.getElementById('filter-material');
     const filterFestival = document.getElementById('filter-festival');
 
-    const galleryItems = [
+    // Load gallery from local storage or use defaults
+    let galleryItems = JSON.parse(localStorage.getItem('murtiGalleryItems')) || [
         {
             id: 1,
             title: 'Ganesh Ji Marble Murti',
@@ -333,7 +340,7 @@ Thank you for your order!`;
             card.dataset.festival = item.festival;
 
             card.innerHTML = `
-                <div class="gallery-img-placeholder"></div>
+                <div class="gallery-img-placeholder" style="${item.image ? `background-image: url('${item.image}'); background-size: cover; background-position: center;` : ''}"></div>
                 <div class="gallery-title">${item.title}</div>
                 <div class="gallery-meta">Deity: ${item.deity.toUpperCase()} | Material: ${item.material} | Festival: ${item.festival}</div>
             `;
@@ -513,7 +520,9 @@ Thank you 🙏`;
         const modal = document.getElementById('product-modal');
         if (!modal) return;
 
-        document.getElementById('modal-product-image').innerHTML = `<span style="font-size: 8rem;">${product.emoji}</span>`;
+        document.getElementById('modal-product-image').innerHTML = product.image 
+            ? `<img src="${product.image}" style="width: 100%; height: 100%; object-fit: cover;">` 
+            : `<span style="font-size: 8rem;">${product.emoji}</span>`;
         document.getElementById('modal-product-name').textContent = product.name;
         document.getElementById('modal-product-price').textContent = `₹${product.price.toLocaleString('en-IN')}`;
 
@@ -624,6 +633,10 @@ Thank you 🙏`;
         document.getElementById('product-emoji').value = product.emoji || '🐘';
         document.getElementById('product-price-range').value = product.priceRange;
         
+        // Set hidden ID
+        const idField = document.getElementById('product-id');
+        if (idField) idField.value = product.id;
+        
         alert(`✏️ Editing: ${product.name}\n\nModify the values and click "Add / Update Product" to save changes.`);
         
         // Scroll to form
@@ -634,6 +647,7 @@ Thank you 🙏`;
         if (confirm(`❌ Are you sure you want to delete: ${products[index].name}?`)) {
             products.splice(index, 1);
             renderProducts();
+            if (window.renderAdminProducts) window.renderAdminProducts();
             alert('✅ Product deleted successfully!');
         }
     };
@@ -739,4 +753,174 @@ Thank you 🙏`;
             alert(details);
         }
     };
+
+    // ===== ADMIN PANEL FUNCTIONS =====
+    window.switchAdminTab = function(tabName) {
+        // Hide all contents
+        document.querySelectorAll('.admin-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Show target content
+        const targetContent = document.getElementById(`admin-${tabName}`);
+        if (targetContent) {
+            targetContent.classList.add('active');
+        }
+
+        // Update tab buttons
+        document.querySelectorAll('.admin-tab').forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(tabName)) {
+                tab.classList.add('active');
+            }
+        });
+
+        // Refresh data
+        if (tabName === 'products') {
+            if (window.renderAdminProducts) window.renderAdminProducts();
+        } else if (tabName === 'orders') {
+            if (window.displayOrders) window.displayOrders();
+        } else if (tabName === 'gallery') {
+            if (window.renderAdminGallery) window.renderAdminGallery();
+        }
+    };
+
+    window.renderAdminProducts = function() {
+        const list = document.getElementById('admin-products-list');
+        if (!list) return;
+
+        list.innerHTML = products.map((p, index) => `
+            <div class="admin-product-row">
+                <div class="admin-product-details">
+                    <div class="admin-emoji" style="overflow: hidden;">${p.image ? `<img src="${p.image}" style="width: 100%; height: 100%; object-fit: cover;">` : p.emoji}</div>
+                    <div>
+                        <strong>${p.name}</strong>
+                        <div style="font-size: 0.85rem; color: #666;">
+                            ${p.deity} • ${p.material} • ₹${p.price.toLocaleString('en-IN')}
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <button class="secondary-btn" onclick="editProduct(${p.id})" style="padding: 5px 10px; font-size: 0.8rem;">Edit</button>
+                    <button class="primary-btn" onclick="deleteProduct(${index})" style="padding: 5px 10px; font-size: 0.8rem; background: #e74c3c; border-color: #e74c3c; color: white;">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    // Product Form Handler
+    const productForm = document.getElementById('product-form');
+    if (productForm) {
+        productForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const idInput = document.getElementById('product-id');
+            const name = document.getElementById('product-name').value;
+            const deity = document.getElementById('product-deity').value;
+            const material = document.getElementById('product-material').value;
+            const price = Number(document.getElementById('product-price').value);
+            const originalPrice = Number(document.getElementById('product-original-price').value);
+            const emoji = document.getElementById('product-emoji').value;
+            const priceRange = document.getElementById('product-price-range').value;
+            const imageInput = document.getElementById('product-image');
+
+            // Function to handle saving after image is processed (or skipped)
+            const saveProductData = (imageUrl) => {
+                if (idInput.value) {
+                    // Update existing
+                    const id = Number(idInput.value);
+                    const product = products.find(p => p.id === id);
+                    if (product) {
+                        product.name = name;
+                        product.deity = deity;
+                        product.material = material;
+                        product.price = price;
+                        product.originalPrice = originalPrice;
+                        product.emoji = emoji;
+                        product.priceRange = priceRange;
+                        if (imageUrl) product.image = imageUrl; // Only update image if new one provided
+                        alert('✅ Product updated successfully!');
+                    }
+                } else {
+                    // Add new
+                    const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
+                    products.push({
+                        id: newId,
+                        name, deity, material, price, originalPrice, emoji, priceRange,
+                        image: imageUrl || null
+                    });
+                    alert('✅ Product added successfully!');
+                }
+
+                productForm.reset();
+                idInput.value = '';
+                window.renderAdminProducts();
+                renderProducts(); // Update main shop
+            };
+
+            // Check if image is selected
+            if (imageInput.files && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    saveProductData(e.target.result); // Pass the base64 image string
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            } else {
+                saveProductData(null); // No new image
+            }
+        });
+    }
+
+    // ===== ADMIN GALLERY FUNCTIONS =====
+    window.renderAdminGallery = function() {
+        const list = document.getElementById('admin-gallery-list');
+        if (!list) return;
+        
+        list.innerHTML = galleryItems.map((item, index) => `
+            <div class="product-card">
+                <div class="product-image" style="height: 150px; ${item.image ? `background-image: url('${item.image}'); background-size: cover; background-position: center;` : ''}">
+                    ${!item.image ? '🖼️' : ''}
+                </div>
+                <div class="product-info">
+                    <div class="product-name">${item.title}</div>
+                    <button class="primary-btn" onclick="deleteGalleryItem(${index})" style="width:100%; background: #e74c3c; margin-top: 10px; font-size: 0.8rem; padding: 8px;">Delete Photo</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    window.deleteGalleryItem = function(index) {
+        if(confirm('Are you sure you want to delete this photo?')) {
+            galleryItems.splice(index, 1);
+            localStorage.setItem('murtiGalleryItems', JSON.stringify(galleryItems));
+            renderAdminGallery();
+            renderGallery(galleryItems); // Update main gallery
+        }
+    };
+
+    const galleryForm = document.getElementById('gallery-form');
+    if (galleryForm) {
+        galleryForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title = document.getElementById('gallery-title').value;
+            const deity = document.getElementById('gallery-deity').value;
+            const material = document.getElementById('gallery-material').value;
+            const festival = document.getElementById('gallery-festival').value;
+            const imageInput = document.getElementById('gallery-image');
+            
+            if (imageInput.files && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const newItem = { id: Date.now(), title, deity, material, festival, prompt: '', image: e.target.result };
+                    galleryItems.unshift(newItem);
+                    localStorage.setItem('murtiGalleryItems', JSON.stringify(galleryItems));
+                    alert('✅ Photo added to Gallery!');
+                    galleryForm.reset();
+                    renderAdminGallery();
+                    renderGallery(galleryItems);
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            }
+        });
+    }
 })();
